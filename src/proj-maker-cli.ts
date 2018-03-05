@@ -27,16 +27,27 @@ export default class ProjMakerCli extends CliApp {
         //-------------------------
         // Commands
         //-------------------------
-        program.command('go')
-        .description("do something")
-        .action(this.action(this.go));
-                
+        program.command('new <unit-type> <name>')
+        .description("create a new unit of type <unit-type> with the name <name>")
+        .action(this.action(this.new_unit));
+        
+        program.command('status')
+        .alias('s')
+        .description("show info")
+        .action(this.action(this.status));
     }
 
 
-    private go(options:any) {
-        let result = this.proj_maker.go()
-        console.log("Demo App:", result)
+    private async new_unit(unit_type: string, name: string, options:any) {
+        let result = await this.proj_maker.new_unit(unit_type, name)
+        console.log("ProjMaker:", result)
     }
 
+    private status() {
+        console.log("")
+        console.log("ProjMaker")
+        console.log("---------")
+        console.log("Base directory ($HYGEN_TMPLS):", this.proj_maker.basedir ? this.proj_maker.basedir.toString() : chalk.red("NOT SET"))
+        console.log("")
+    }
 }

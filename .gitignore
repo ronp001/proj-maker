@@ -3,3 +3,5 @@ node_modules/
 package/
 proj-maker*.tgz
 yarn-error.log
+src/__tests__/_sandbox
+
