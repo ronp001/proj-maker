@@ -1,0 +1,61 @@
+{
+  "name": "proj-maker",
+  "version": "0.1.0",
+  "keywords": [],
+  "description": "not described yet",
+  "main": "dist/proj-maker.js",
+  "author": "Ron Perry",
+  "files": [
+    "bin/*",
+    "dist/*"
+  ],
+  "license": "MIT",
+  "bin": {
+    "proj-maker": "./bin/proj-maker"
+  },
+  "bugs": "https://github.com/ronp001/proj-maker/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ronp001/proj-maker"
+  },
+  "scripts": {
+    "clean": "rm -rf dist/",
+    "relink": "yarn unlink && yarn link",
+    "build": "tsc",
+    "build:production": "yarn clean && tsc -p tsconfig-prod.json && yarn pack",
+    "test:integration": "jest --testRegex 'src(/__(integration_)?tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$' 'src/__integration_tests__/integration.test.ts'",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "doc": "typedoc --out ./doc ./src"
+  },
+  "dependencies": {
+    "chalk": "^2.3.1",
+    "commander": "^2.14.1",
+    "isbinaryfile": "^3.0.2",
+    "lodash": "^4.17.5"
+  },
+  "devDependencies": {
+    "@types/jest": "^22.1.2",
+    "@types/lodash": "^4.14.104",
+    "@types/mock-fs": "^3.6.30",
+    "hygen": "^1.4.11",
+    "jest": "^22.3.0",
+    "mock-fs": "^4.4.2",
+    "ts-jest": "^22.0.4",
+    "typescript": "^2.7.2"
+  },
+  "jest": {
+    "transform": {
+      "^.+\\.tsx?$": "ts-jest"
+    },
+    "testRegex": "src(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$",
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json",
+      "node"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "about": "definitions for turning this project into a reusable template using hygen-create",
+  "hygen_create_version": "0.2.0",
+  "name": "app.cli",
+  "files_and_dirs": {
+    ".gitignore": true,
+    "package.json": true,
+    "tsconfig.json": true,
+    "src/cli-app.ts": true,
+    "src/proj-maker-cli.ts": true,
+    "src/proj-maker.ts": true,
+    "src/path_helper.ts": true,
+    "bin/proj-maker": true,
+    "src/__tests__/proj-maker.test.ts": true,
+    "src/__tests__/path_helper.test.ts": true,
+    "LICENSE.txt": true,
+    "README.md": true,
+    ".npmignore": true,
+    ".travis.yml": true,
+    "hygen-create.json": true,
+    "src/__tests__/mock-fs-helper.ts": true
+  },
+  "templatize_using_name": "ProjMaker",
+  "gen_parent_dir": false,
+  "using_name": "ledger",
+  "word_conversions": {}
+}

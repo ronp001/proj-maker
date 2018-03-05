@@ -1,0 +1,5 @@
+#!/usr/bin/env node
+
+let ProjMakerCli = require('../dist/proj-maker-cli.js').default
+let cli = new ProjMakerCli()
+cli.main()
