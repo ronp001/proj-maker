@@ -8,24 +8,27 @@ const { yellow, red, green, magenta } = chalk
 const template = require('chalk/templates')
 
 class Logger {
-    private log : (...args:any[]) => any = console.log
+    // private log : (...args:any[]) => any = console.log
     constructor(log:()=>any) {
-        this.log = log
+        // this.log = log
+    }
+    log(msg:any) {
+        console.log(msg)
     }
     colorful(msg:any) {
-        this.log(template(chalk, msg))
+        console.log(template(chalk, msg))
     }
     notice(msg:any) {
-        this.log(magenta(msg))
+        console.log(magenta(msg))
     }
     warn(msg:any) {
-        this.log(yellow(msg))
+        console.log(yellow(msg))
     }
     err(msg:any) {
-        this.log(red(msg))
+        console.log(red(msg))
     }
     ok(msg:any) {
-        this.log(green(msg))
+        console.log(green(msg))
     }
 }
 
