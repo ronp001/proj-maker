@@ -34,9 +34,13 @@ async function prepareSandbox() {
     
     // initialize a git repository in the proj1 dir
     let git = SimpleGitConnector.connect(proj1.toString())
-    await git.init()
-    await git.add('a-file')
-    await git.commit('added a-file')
+    try {    
+        await git.init()
+        await git.add('a-file')
+        await git.commit('added a-file')
+    } catch(e) {
+        expect(e).toBeNull()
+    }
     expect(proj1.add('.git').isDir).toBeTruthy()
 
     // prepare the templates
