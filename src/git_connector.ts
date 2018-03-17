@@ -1,0 +1,86 @@
+import {execFileSync} from "child_process"
+import {AbsPath} from "./path_helper"
+import { isArray } from "util";
+
+export namespace GitConnectorError {
+    export class NotConnectedToProject extends Error {}
+    export class AddFailed extends Error {}
+}
+
+export class GitConnectorSync {
+    public constructor(path? : AbsPath) {
+        if ( path != null ) {
+            this._path = path
+        }
+    }
+
+    private _path : AbsPath = new AbsPath(null)
+
+    public get project_dir() { return this._path }
+    public set project_dir(path : AbsPath) {
+        this._path = path
+    }
+
+    private runcmd(gitcmd:string, args:string[]=[]) {
+        let old_dir : string | null = null
+        if ( this._path.abspath == null ) {
+            throw new GitConnectorError.NotConnectedToProject("GitConnectorSync: command executed before setting project_dir")
+        }
+        try {
+            try {
+                if ( process.cwd() != this._path.abspath ) {
+                    old_dir = process.cwd()
+                    process.chdir(this._path.abspath)
+                }                    
+            } catch(e) { // process.cwd() throws an error if the current directory does not exist
+                process.chdir(this._path.abspath)                
+            }
+            execFileSync('git',[gitcmd].concat(args))
+        } finally {
+            if ( old_dir != null ) {
+                process.chdir(old_dir)
+            }
+        }
+    }
+
+    public get is_repo() : boolean {
+        try {
+            this.status()
+        } catch(e) {
+            return false
+        }
+        return true
+    }
+
+    public status() {
+        this.runcmd("status")
+    }
+    public stash() {
+        this.runcmd("stash")
+    }
+    public stash_pop() {
+        this.runcmd("stash", ["pop"])
+    }
+    public init() {
+        this.runcmd("init")
+    }
+
+    public add(path:string|string[]) {
+        let paths : string[]
+        if ( path instanceof Array ) {
+            paths = path as string[]
+        } else {
+            paths = [path as string]
+        }
+
+        try {
+            this.runcmd("add", paths)
+        } catch(e) {
+            throw new GitConnectorError.AddFailed(e.message)
+        }
+    }
+
+    public commit(comment:string) {
+        this.runcmd("commit", ["-m",comment])
+    }
+}

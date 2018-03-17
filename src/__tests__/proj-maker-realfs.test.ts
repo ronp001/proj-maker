@@ -2,14 +2,16 @@
 import {ProjMaker, ProjMakerError} from "../proj-maker"
 import * as mockfs from 'mock-fs'
 import * as fs from 'fs'
+import * as os from 'os'
 import { AbsPath } from "../path_helper";
-import { SimpleGitConnector } from "../simple-git-connector"
+import { GitConnectorSync, GitConnectorError } from "../git_connector";
 
 
-let sandbox_path = new AbsPath(__dirname).add('_sandbox')
+let sandbox_path = new AbsPath(os.tmpdir()).add('_sandbox')
 let templates_path = sandbox_path.add('_templates')
 let generator_path = templates_path.add('basic').add('new')
 let output_path = sandbox_path.add('_output')
+let tmp_path = new AbsPath(os.tmpdir()).add('proj-maker-test')
 
 
 let templates =  {
@@ -17,11 +19,18 @@ let templates =  {
     'file2.ejs.t' : '---\nto: file2\n---\nthis is file2'
 }
 
-async function prepareSandbox() {
+function deleteSandbox() {
+    if ( sandbox_path.isDir ) {
+        sandbox_path.rmrfdir(/_sandbox/, false)
+    }
+}
+
+function prepareSandbox() {
+    // expect(1).toEqual(2)
 
     // clean the sandbox dir
     if ( sandbox_path.isDir ) {
-        sandbox_path.rmrfdir(/__tests__\/_sandbox/, false)
+        sandbox_path.rmrfdir(/_sandbox/, false)
     } else {
         sandbox_path.mkdirs()
     }
@@ -33,15 +42,19 @@ async function prepareSandbox() {
     proj1.add('a-file').saveStrSync('test')
     
     // initialize a git repository in the proj1 dir
-    let git = SimpleGitConnector.connect(proj1.toString())
-    try {    
-        await git.init()
-        await git.add('a-file')
-        await git.commit('added a-file')
-    } catch(e) {
-        expect(e).toBeNull()
-    }
+    let git = new GitConnectorSync()
+    git.project_dir = proj1
+    expect(()=>{git.init()}).not.toThrow()
+    expect(()=>{git.add('a-file')}).not.toThrow()
+    expect(()=>{git.commit('added a-file')}).not.toThrow()
     expect(proj1.add('.git').isDir).toBeTruthy()
+
+    try {
+        git.add('no-such-file')
+    } catch(e) {
+        expect(e).toBeInstanceOf(GitConnectorError.AddFailed)
+        console.log("message when attempting to add non-existent file:\n",e.message)
+    }
 
     // prepare the templates
     templates_path.mkdirs()
@@ -49,17 +62,57 @@ async function prepareSandbox() {
         generator_path.add(fname).saveStrSync(templates[fname])
     }
     expect(templates_path.add('basic/new/file1.ejs.t').exists).toBeTruthy()
-
-
 }
 
-beforeEach(async () => {
+beforeEach(() => {
     process.env['HYGEN_TMPLS'] = templates_path.toString()
-    await prepareSandbox()    
+    prepareSandbox()    
     process.chdir(output_path.toString())
 })
   
-afterEach(async () => {
+afterEach(() => {
+    deleteSandbox()
+})
+
+describe('git verification', () => {
+
+    test('can identify whether in git repo', async () => {       
+        // prepare temp directory outside of the main git repo
+        let tmp_proj = tmp_path.add('tmp-project-for-unit-tests')
+        if ( tmp_proj.isDir ) {
+            tmp_proj.rmrfdir(/tmp-project-for-unit-tests/, false)
+        } else {
+            tmp_proj.mkdirs()
+        }    
+        expect(tmp_proj.isDir).toBeTruthy()
+        console.log("tmp_proj path:", tmp_proj.abspath)
+
+        // recognize that it's not a git repo
+        let git = new GitConnectorSync()
+        git.project_dir = tmp_proj
+        expect(git.is_repo).toBeFalsy()
+        expect(git.project_dir.abspath).toEqual(tmp_proj.abspath)
+
+        // see that ProjMaker refuses to create projec there
+        let pm = new ProjMaker
+        process.chdir(tmp_proj.abspath)
+        let did_throw = null
+        try {
+            await pm.new_unit('basic', 'tmp-project-for-unit-tests')
+        } catch ( e ) {
+            did_throw = e
+        }
+        expect(did_throw).toBeInstanceOf(ProjMakerError.NotInGitRepo)
+
+        // turn into a git repo
+        expect(() => {git.init()}).not.toThrow()
+
+        // recognize that it's a git repo
+        expect(git.is_repo).toBeTruthy()
+
+        // cleanup
+        tmp_proj.rmrfdir(/tmp-project-for-unit-tests/, true)
+    })
 })
 
 describe('new unit', () => {
@@ -67,7 +120,7 @@ describe('new unit', () => {
         expect(generator_path.isDir).toBeTruthy()
     })
 
-    test('creates ', async () => {
+    test('creates', async () => {
         let pm = new ProjMaker
         process.chdir(output_path.add('empty').toString())
         await pm.new_unit('basic','empty')

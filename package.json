@@ -33,8 +33,7 @@
     "commander": "^2.14.1",
     "hygen": "^1.4.28",
     "isbinaryfile": "^3.0.2",
-    "lodash": "^4.17.5",
-    "simple-git": "^1.92.0"
+    "lodash": "^4.17.5"
   },
   "devDependencies": {
     "@types/jest": "^22.1.2",

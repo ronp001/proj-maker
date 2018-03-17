@@ -32,6 +32,8 @@ simfs.addFile(new AbsPath(__dirname).add("../proj-maker.ts"))
 simfs.addDirContents(new AbsPath(__dirname).add("../../node_modules/callsites"))
 
 
+
+
 beforeEach(async () => {    
     mockfs(simfs.fs_structure)
     expect(new AbsPath('/_templates/basic/new/file1.ejs.t').exists).toBeTruthy()

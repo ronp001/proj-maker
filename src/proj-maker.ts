@@ -4,6 +4,7 @@ import {LOG} from './logger'
 import * as _ from "lodash"
 import chalk from 'chalk'
 import {HygenRunner} from './hygen_runner'
+import { GitConnectorSync } from './git_connector';
 
 const APP_VERSION = "0.2.0"
 
@@ -17,6 +18,7 @@ export namespace ProjMakerError {
     export class OutputDirNotFound extends ProjMakerError { constructor(outdir:string) { super("Cannot find output directory: " + outdir)  } }
     export class OutputDirNotEmpty extends ProjMakerError { constructor(outdir:string) { super("Output directory not empty: " + outdir)  } }
     export class NoGenerator extends ProjMakerError { constructor(unit_type:string) { super("Cannot find generator for unit type: " + unit_type)  } }
+    export class NotInGitRepo extends ProjMakerError { constructor() { super("Must be in git repo")  } }
 }
 
 export class ProjMaker {
@@ -73,10 +75,30 @@ export class ProjMaker {
             throw new ProjMakerError.OutputDirNotFound(outdir.toString())
         }
         if ( dircontents.length > 0 ) {
-            throw new ProjMakerError.OutputDirNotEmpty(outdir.toString())
+            if ( dircontents.length != 1 || dircontents[0].basename != ".git") {
+                throw new ProjMakerError.OutputDirNotEmpty(outdir.toString())
+            }
         }
 
-        // run the generator
-        await this.runHygen([unit_type, 'new', '--name', unit_name], this.templatedir, outdir)
+        // verify that the directory is inside a git repository        
+        let git = new GitConnectorSync(outdir)
+        if ( !git.is_repo ) {
+            throw new ProjMakerError.NotInGitRepo()
+        }
+
+        // do a 'git stash' before running the generator
+        git.stash()
+        
+        try {
+            // run the generator
+            await this.runHygen([unit_type, 'new', '--name', unit_name], this.templatedir, outdir)
+            
+            // add and commit the changes
+            git.add('.')
+            git.commit(`[proj-maker autocommit] added unit '${unit_name}' of type '${unit_type}'`)
+        } finally {   
+            // undo the stash
+            git.stash_pop()
+        }
     }
 }
