@@ -64,6 +64,7 @@ export class ProjMaker {
         // decide whether to create the project in the current directory, or
         // to create a subdirectory with a matching name
         let outdir = this.getDirForNewUnit(unit_name)
+        if ( outdir.abspath == null ) throw "Unexpected state: outdir.abspath is null"
 
         if ( !outdir.isDir ) {
             outdir.mkdirs()
@@ -87,18 +88,20 @@ export class ProjMaker {
         }
 
         // do a 'git stash' before running the generator
-        git.stash()
+        let did_stash = git.stash_with_untracked()
         
         try {
             // run the generator
             await this.runHygen([unit_type, 'new', '--name', unit_name], this.templatedir, outdir)
             
             // add and commit the changes
-            git.add('.')
+            git.add(outdir.abspath)
             git.commit(`[proj-maker autocommit] added unit '${unit_name}' of type '${unit_type}'`)
         } finally {   
             // undo the stash
-            git.stash_pop()
+            if ( did_stash ) {
+                git.stash_pop()
+            }
         }
     }
 }

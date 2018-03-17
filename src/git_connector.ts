@@ -21,7 +21,7 @@ export class GitConnectorSync {
         this._path = path
     }
 
-    private runcmd(gitcmd:string, args:string[]=[]) {
+    private runcmd(gitcmd:string, args:string[]=[]) : string {
         let old_dir : string | null = null
         if ( this._path.abspath == null ) {
             throw new GitConnectorError.NotConnectedToProject("GitConnectorSync: command executed before setting project_dir")
@@ -31,11 +31,15 @@ export class GitConnectorSync {
                 if ( process.cwd() != this._path.abspath ) {
                     old_dir = process.cwd()
                     process.chdir(this._path.abspath)
+                    console.log("GitConnectorSync: changed dir to", process.cwd())
                 }                    
             } catch(e) { // process.cwd() throws an error if the current directory does not exist
                 process.chdir(this._path.abspath)                
             }
-            execFileSync('git',[gitcmd].concat(args))
+            console.log("GitConnectorSync running:  git",[gitcmd].concat(args).join(" "))
+            let result = execFileSync('git',[gitcmd].concat(args))
+            console.log("GitConnectorSync output:", result.toString())
+            return result
         } finally {
             if ( old_dir != null ) {
                 process.chdir(old_dir)
@@ -55,14 +59,25 @@ export class GitConnectorSync {
     public status() {
         this.runcmd("status")
     }
-    public stash() {
-        this.runcmd("stash")
+
+    public stash_with_untracked() : boolean {
+        let objname = this.runcmd("stash", ["create", "--include-untracked", "proj-maker auto-stash"])
+        if ( objname == "") {
+            return false
+        }
+        this.runcmd("stash", ["store", objname])
+        return true
     }
+
     public stash_pop() {
         this.runcmd("stash", ["pop"])
     }
     public init() {
         this.runcmd("init")
+    }
+
+    public get commit_count() : number {
+        return parseInt(this.runcmd("rev-list",["--count", "HEAD"]))
     }
 
     public add(path:string|string[]) {

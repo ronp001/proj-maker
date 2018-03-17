@@ -12,6 +12,7 @@ let templates_path = sandbox_path.add('_templates')
 let generator_path = templates_path.add('basic').add('new')
 let output_path = sandbox_path.add('_output')
 let tmp_path = new AbsPath(os.tmpdir()).add('proj-maker-test')
+let orig_cwd = process.cwd()
 
 
 let templates =  {
@@ -35,19 +36,23 @@ function prepareSandbox() {
         sandbox_path.mkdirs()
     }
     
-    // prepare the project dirs
+    //-------------------------------------
+    // prepare the project dirs:
+    // <sandbox>/_output/empty - an empty directory
+    // <sandbox>/_output/proj1 - a directory with a git repo and a single commit in it
+    //-------------------------------------
     output_path.add('empty').mkdirs()
+
     let proj1 = output_path.add('proj1')
     proj1.mkdirs()
     proj1.add('a-file').saveStrSync('test')
     
     // initialize a git repository in the proj1 dir
-    let git = new GitConnectorSync()
-    git.project_dir = proj1
+    let git = new GitConnectorSync(proj1.parent)
     expect(()=>{git.init()}).not.toThrow()
-    expect(()=>{git.add('a-file')}).not.toThrow()
+    expect(()=>{git.add('proj1/a-file')}).not.toThrow()
     expect(()=>{git.commit('added a-file')}).not.toThrow()
-    expect(proj1.add('.git').isDir).toBeTruthy()
+    expect(proj1.parent.add('.git').isDir).toBeTruthy()
 
     try {
         git.add('no-such-file')
@@ -71,6 +76,7 @@ beforeEach(() => {
 })
   
 afterEach(() => {
+    process.chdir(orig_cwd)
     deleteSandbox()
 })
 
@@ -122,10 +128,20 @@ describe('new unit', () => {
 
     test('creates', async () => {
         let pm = new ProjMaker
-        process.chdir(output_path.add('empty').toString())
-        await pm.new_unit('basic','empty')
-        let file1 = output_path.add('empty').add('file1')
+        let projdir = output_path.add('proj1')
+        let unitdir = projdir.add('new_unit')
+        unitdir.mkdirs()
+        process.chdir(unitdir.toString())
+        
+        let git = new GitConnectorSync(projdir)
+        expect(git.is_repo).toBeTruthy()
+        let orig_commit_count = git.commit_count
+
+        await pm.new_unit('basic','new_unit')
+        let file1 = unitdir.add('file1')
         expect(file1.isFile).toBeTruthy()
-        expect(file1.contentsLines[0]).toEqual("this is file1 in empty")
+        expect(file1.contentsLines[0]).toEqual("this is file1 in new_unit")
+
+        expect(git.commit_count).toEqual(orig_commit_count+1)
     })
 })
