@@ -39,8 +39,12 @@ export default class ProjMakerCli extends CliApp {
 
 
     private async new_unit(unit_type: string, name: string, options:any) {
-        let result = await this.proj_maker.new_unit(unit_type, name)
-        console.log("ProjMaker:", result)
+        try {
+            let result = await this.proj_maker.new_unit(unit_type, name)
+            //console.log("ProjMaker:", result)
+        } catch ( e ) {
+            console.error(e.message)
+        }
     }
 
     private status() {

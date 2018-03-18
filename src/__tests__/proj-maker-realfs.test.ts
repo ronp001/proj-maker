@@ -137,10 +137,18 @@ describe('new unit', () => {
         unitdir.mkdirs()
         process.chdir(unitdir.toString())
         
-        // remember how many commit were before creating the new unit
+        // create a file that should not be included in the commit
+        projdir.add('extrafile').saveStrSync("this file should not be in the commit")
+        expect(projdir.add('extrafile').isFile).toBeTruthy()
+
+        // remember how many commit and tags were before creating the new unit
         let git = new GitLogic(projdir)
         expect(git.is_repo).toBeTruthy()
         let orig_commit_count = git.commit_count
+        let orig_tags = git.get_tags_matching("pmAFTER_ADDING*")
+
+        // add the extra file (later we expect it not to show up in the commit)
+        git.add(projdir.add('extrafile').abspath)
 
         // execute unit creation
         await pm.new_unit('basic','new_unit')
@@ -155,6 +163,18 @@ describe('new unit', () => {
         expect(git.commit_count).toEqual(orig_commit_count+1)
 
         // make sure we have a new tag
+        let tags = git.get_tags_matching("pmAFTER_ADDING*")
+        expect(tags.length).toEqual(orig_tags.length + 1)
+        expect(tags[0]).toEqual('pmAFTER_ADDING_new_unit')
+
+        // ensure only the two new files were included in the commit
+        let files_in_commit = git.get_files_in_commit(tags[0])
+        expect(files_in_commit).toHaveLength(2)
+        expect(files_in_commit[0]).toMatch(/file1/)
+        expect(files_in_commit[1]).toMatch(/file2/)
+
+        // ensure extrafile is back
+        expect(projdir.add('extrafile').isFile).toBeTruthy()
 
     })
 })

@@ -1,6 +1,7 @@
 import {AbsPath} from './path_helper'
 import {StrUtils} from './str_utils'
 import {LOG} from './logger'
+import {execFileSync} from "child_process"
 import * as _ from "lodash"
 import chalk from 'chalk'
 import {HygenRunner} from './hygen_runner'
@@ -68,6 +69,16 @@ export class ProjMaker {
         return current.add(unit_name)
     }
 
+    public explain(str:string, cmd_and_params:string[]=[]) {
+        console.log(chalk.red(str))
+        let cmd = cmd_and_params.shift()
+        if ( cmd ) {
+            console.log(chalk.magentaBright("running: " + cmd + " " + cmd_and_params.join(" ")))
+            let result = execFileSync(cmd,cmd_and_params)
+            console.log(chalk.magenta(result))
+        }
+    }
+
     public async new_unit(unit_type:string, unit_name:string)  {
         if ( !this.basedir ) throw new ProjMakerError.BasedirNotSet
         LOG(`type: ${unit_type}  name: ${unit_name}`)
@@ -81,32 +92,54 @@ export class ProjMaker {
         // to create a subdirectory with a matching name
         let outdir = this.getDirForNewUnit(unit_name)
         if ( outdir.abspath == null ) throw "Unexpected state: outdir.abspath is null"
-
-        if ( !outdir.isDir ) {
-            outdir.mkdirs()
+        let parent = outdir.parent
+        if ( parent.abspath == null ) {
+            throw "Unexpected state: outdir does not have parent"
         }
 
-        // verify that the directory is empty
-        let dircontents = outdir.dirContents
-        if ( dircontents == null ) {
-            throw new ProjMakerError.OutputDirNotFound(outdir.toString())
-        }
-        if ( dircontents.length > 0 ) {
-            if ( dircontents.length != 1 || dircontents[0].basename != ".git") {
-                throw new ProjMakerError.OutputDirNotEmpty(outdir.toString())
-            }
+        // find the containing git repo
+        let gitroot = parent.findUpwards(".git", true).parent
+        if ( !gitroot.isDir ) {
+            throw new ProjMakerError.NotInGitRepo()
         }
 
-        // verify that the directory is inside a git repository        
+        // verify that the directory is indeed a git repository        
         let git = this.gitConnector
-        git.project_dir = outdir
+        git.project_dir = gitroot
         if ( !git.is_repo ) {
             throw new ProjMakerError.NotInGitRepo()
         }
 
-        // do a 'git stash' before running the generator
-        let did_stash = git.stash_with_untracked()
+        // if the directory exists: make sure it's empty before proceeding
+        if ( outdir.isDir ) {
+            // verify that the directory is empty
+            let dircontents = outdir.dirContents
+            if ( dircontents == null ) {
+                throw new ProjMakerError.OutputDirNotFound(outdir.toString())
+            }
+            if ( dircontents.length > 0 ) {
+                if ( dircontents.length != 1 || dircontents[0].basename != ".git") {
+                    throw new ProjMakerError.OutputDirNotEmpty(outdir.toString())
+                }
+            }
+        } else {
+            outdir.mkdirs()
+        }
         
+        // ensure at least one commit in the repo
+        if ( git.commit_count == 0 ) {
+            git.empty_commit("[proj-maker autocommit] initial commit")
+        }
+
+        // do a 'git stash' before running the generator
+        this.explain("before stashing", ["ls", "-l", parent.abspath])
+        this.explain("before stashing", ["git", "status"])
+        let did_stash = git.stash_with_untracked_excluding(outdir.abspath)
+        this.explain(`did_stash: ${did_stash}`)
+        this.explain("after stashing", ["ls", "-l", parent.abspath])
+        
+        
+
         try {
             // run the generator
             await this.runHygen([unit_type, 'new', '--name', unit_name], this.templatedir, outdir)
@@ -123,7 +156,6 @@ export class ProjMaker {
 
         // tag the commit with "pmAFTER_ADDING_<unit-name>"
         let tagname = `pmAFTER_ADDING_${unit_name}`
-        // git.tag(tagname)
-
+        git.create_tag(tagname)
     }
 }
