@@ -4,6 +4,7 @@ import { isArray } from "util";
 
 export namespace GitConnectorError {
     export class NotConnectedToProject extends Error {}
+    export class InvalidPath extends Error {}
     export class AddFailed extends Error {}
 }
 
@@ -21,10 +22,15 @@ export class GitConnectorSync {
         this._path = path
     }
 
-    private runcmd(gitcmd:string, args:string[]=[]) : string {
+    public runcmd = this._runcmd // allow mocking
+
+    private _runcmd(gitcmd:string, args:string[]=[]) : string {
         let old_dir : string | null = null
         if ( this._path.abspath == null ) {
             throw new GitConnectorError.NotConnectedToProject("GitConnectorSync: command executed before setting project_dir")
+        }
+        if ( !this._path.isDir ) {
+            throw new GitConnectorError.InvalidPath("GitConnectorSync: project_dir is not an existing directory")            
         }
         try {
             try {

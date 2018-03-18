@@ -5,7 +5,7 @@ import * as fs from 'fs'
 import { AbsPath } from "../path_helper";
 
 import {MockFSHelper} from "./mock-fs-helper"
-import { HygenRunner } from "../hygen_runner";
+import {HygenRunner} from "../hygen_runner";
 
 
 let simfs = new MockFSHelper({
@@ -31,7 +31,11 @@ simfs.addFile(new AbsPath(__dirname).add("../proj-maker.test.ts"))
 simfs.addFile(new AbsPath(__dirname).add("../proj-maker.ts"))
 simfs.addDirContents(new AbsPath(__dirname).add("../../node_modules/callsites"))
 
-
+ProjMaker.overrideMockables = (instance:ProjMaker) => {
+    instance.runHygen = jest.fn()
+    // instance.gitConnector.runcmd = (gitcmd:string, args?:string[]) : string => {console.log("mocked gitconnector called with ", gitcmd, args); return "0"}
+    instance.gitConnector.runcmd =  jest.fn()
+}
 
 
 beforeEach(async () => {    
@@ -96,7 +100,8 @@ describe('new unit', async () => {
         let pm = new ProjMaker
         process.chdir('/empty')
         
-        pm.runHygen = jest.fn()
+        // override the 'runHygen' function with a mock
+        // pm.runHygen = jest.fn()
 
         pm.new_unit('basic','my-unit')
         let outdir = new AbsPath('/empty/my-unit')
@@ -108,7 +113,9 @@ describe('new unit', async () => {
 
     test('does not create directory if unnecessary', () => {
         let pm = new ProjMaker
-        pm.runHygen = jest.fn()
+  
+        // override the 'runHygen' function with a mock
+        // pm.runHygen = jest.fn()
 
         process.chdir('/empty')
         

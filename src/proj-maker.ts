@@ -23,7 +23,23 @@ export namespace ProjMakerError {
 
 export class ProjMaker {
 
-    public runHygen = HygenRunner.runHygen  // allow mocking
+    // The following allows running ProjMaker in a test environment
+    // without worrying about having to mock the potentially dangerous functions
+    // in every instance of ProjMaker.
+    // To use this: override initProjMaker with a function that creates the appropriate mocks.
+
+    public static overrideMockables(instance:ProjMaker) {
+        // by default, this does nothing
+    }
+
+    constructor() {
+        this.runHygen = HygenRunner.runHygen
+        this.gitConnector = new GitConnectorSync()
+        ProjMaker.overrideMockables(this)
+    }
+    public runHygen :  ((hygen_args: string[], template_path: AbsPath, output_path: AbsPath ) => void)   // allow mocking
+    public gitConnector : GitConnectorSync  // allow mocking
+
 
     public get templatedir() : AbsPath {
         if ( this.basedir ) return this.basedir
@@ -82,7 +98,8 @@ export class ProjMaker {
         }
 
         // verify that the directory is inside a git repository        
-        let git = new GitConnectorSync(outdir)
+        let git = this.gitConnector
+        git.project_dir = outdir
         if ( !git.is_repo ) {
             throw new ProjMakerError.NotInGitRepo()
         }
