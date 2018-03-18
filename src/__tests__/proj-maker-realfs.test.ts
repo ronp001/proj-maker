@@ -29,6 +29,8 @@ function deleteSandbox() {
 function prepareSandbox() {
     // expect(1).toEqual(2)
 
+    process.env.HYGEN_TMPLS = templates_path.abspath
+
     // clean the sandbox dir
     if ( sandbox_path.isDir ) {
         sandbox_path.rmrfdir(/_sandbox/, false)
@@ -169,9 +171,10 @@ describe('new unit', () => {
 
         // ensure only the two new files were included in the commit
         let files_in_commit = git.get_files_in_commit(tags[0])
-        expect(files_in_commit).toHaveLength(2)
-        expect(files_in_commit[0]).toMatch(/file1/)
-        expect(files_in_commit[1]).toMatch(/file2/)
+        expect(files_in_commit).toHaveLength(3)
+        expect(files_in_commit[0]).toMatch(/.pminfo.json/)
+        expect(files_in_commit[1]).toMatch(/file1/)
+        expect(files_in_commit[2]).toMatch(/file2/)
 
         // ensure extrafile is back
         expect(projdir.add('extrafile').isFile).toBeTruthy()

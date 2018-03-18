@@ -51,6 +51,8 @@ export class HygenRunner {
             logger: new Logger(log),
         }
     
+        let dirinfo = chalk.blue(`(in ${output_path.toString()}) `)
+        console.log(dirinfo + chalk.blue("hygen " + hygen_args.join(" ")))
         await runner(hygen_args, config)
     }
 }

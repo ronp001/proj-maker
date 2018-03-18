@@ -16,6 +16,7 @@ let simfs = new MockFSHelper({
     '/empty' : {},
     '/basedir/unit1' : {},
     '/basedir/unit2' : {},
+    '/.git' : {},
     '/dir1' : {
         'file1' : 'a file in dir1',
         'link_to_file1': mockfs.symlink({ path: './file1' }),
@@ -30,11 +31,13 @@ let simfs = new MockFSHelper({
 simfs.addFile(new AbsPath(__dirname).add("../proj-maker.test.ts"))
 simfs.addFile(new AbsPath(__dirname).add("../proj-maker.ts"))
 simfs.addDirContents(new AbsPath(__dirname).add("../../node_modules/callsites"))
+process.env.HYGEN_TMPLS = "/_templates"
 
 ProjMaker.overrideMockables = (instance:ProjMaker) => {
     instance.runHygen = jest.fn()
     // instance.gitConnector.runcmd = (gitcmd:string, args?:string[]) : string => {console.log("mocked gitconnector called with ", gitcmd, args); return "0"}
-    instance.gitConnector.runcmd =  jest.fn()
+    instance.gitLogic.runcmd =  () => {return ""}
+    instance.explain = jest.fn()
 }
 
 
@@ -58,20 +61,20 @@ describe('directory for new unit', () => {
     test('current dir does not match unit name', () => {
         process.chdir('/empty')
         let pm = new ProjMaker
-        expect(pm.getDirForNewUnit('proj1').toString()).toEqual('/empty/proj1')
+        expect(pm.getDirForUnit('proj1').toString()).toEqual('/empty/proj1')
     })
     test('current dir does match unit name', () => {
         process.chdir('/empty')
         let pm = new ProjMaker
-        expect(pm.getDirForNewUnit('empty').toString()).toEqual('/empty')
-        expect(pm.getDirForNewUnit('Empty').toString()).toEqual('/empty')
+        expect(pm.getDirForUnit('empty').toString()).toEqual('/empty')
+        expect(pm.getDirForUnit('Empty').toString()).toEqual('/empty')
         
         fs.mkdirSync('/empty/project-one')
-        expect(pm.getDirForNewUnit('ProjectOne').toString()).toEqual('/empty/ProjectOne')
+        expect(pm.getDirForUnit('ProjectOne').toString()).toEqual('/empty/ProjectOne')
 
         process.chdir('/empty/project-one')
-        expect(pm.getDirForNewUnit('ProjectOne').toString()).toEqual('/empty/project-one')
-        expect(pm.getDirForNewUnit('project_one').toString()).toEqual('/empty/project-one')
+        expect(pm.getDirForUnit('ProjectOne').toString()).toEqual('/empty/project-one')
+        expect(pm.getDirForUnit('project_one').toString()).toEqual('/empty/project-one')
     })
 })
 
@@ -84,6 +87,7 @@ describe('new unit', async () => {
     test('refuses to create in non-empty directory', async () => {
         let pm = new ProjMaker
         expect(pm.getDirForGenerator('basic').toString()).toEqual('/_templates/basic/new')
+        expect(pm.getDirForGenerator('basic',2).toString()).toEqual('/_templates/basic/new.2')
         
         process.chdir('/dir1')
         await expect(pm.new_unit('basic','dir1')).rejects.toThrow(/not empty/i)

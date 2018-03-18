@@ -29,10 +29,10 @@ export class GitLogic {
     private _runcmd(gitcmd:string, args:string[]=[]) : Buffer | string | string[] {
         let old_dir : string | null = null
         if ( this._path.abspath == null ) {
-            throw new GitLogicError.NotConnectedToProject("GitConnectorSync: command executed before setting project_dir")
+            throw new GitLogicError.NotConnectedToProject("GitLogic: command executed before setting project_dir")
         }
         if ( !this._path.isDir ) {
-            throw new GitLogicError.InvalidPath("GitConnectorSync: project_dir is not an existing directory")            
+            throw new GitLogicError.InvalidPath("GitLogic: project_dir is not an existing directory")            
         }
         try {
             let dirinfo = ""
@@ -40,8 +40,10 @@ export class GitLogic {
                 if ( process.cwd() != this._path.abspath ) {
                     old_dir = process.cwd()
                     process.chdir(this._path.abspath)
+                    dirinfo = chalk.blue(`(in ${process.cwd()}) `)
+                } else {
                     dirinfo = chalk.black(`(in ${process.cwd()}) `)
-                }                    
+                }
             } catch(e) { // process.cwd() throws an error if the current directory does not exist
                 process.chdir(this._path.abspath)                
             }
@@ -49,6 +51,9 @@ export class GitLogic {
             let result = execFileSync('git',[gitcmd].concat(args))
             console.log(chalk.cyan(result.toString()))
             return result
+        } catch ( e ) {
+            console.error(chalk.cyan(`git command failed: ${e}`))
+            throw e
         } finally {
             if ( old_dir != null ) {
                 process.chdir(old_dir)
@@ -99,6 +104,18 @@ export class GitLogic {
         this.runcmd("init")
     }
 
+    public get current_branch() : string {
+        return this.runcmd("rev-parse", ["--abbrev-ref", "HEAD"]).toString().trim()
+    }
+    
+    public create_branch(branch_name:string, branching_point:string)  {
+        return this.runcmd("checkout", ["-b", branch_name, branching_point]).toString().trim()
+    }
+
+    public rebase_branch_from_point_onto(branch:string, from_point:string, onto:string) {
+        return this.runcmd("rebase", ["--onto", onto, from_point, branch])
+    }
+
     public get commit_count() : number {
         try {
             return parseInt(this.runcmd("rev-list",["--count", "HEAD"]).toString())
@@ -112,14 +129,15 @@ export class GitLogic {
     }
 
     public to_lines(buf:Buffer|string[]|string) : string[] {
+        let result : string[]
         if ( buf instanceof Buffer ) {
-            let result = buf.toString().split("\n")
-            return _.filter(result,(s:string) => {return s.length > 0})
+            result = buf.toString().split("\n")
         } else if ( buf instanceof Array ) {
-            return buf
+            result = buf
         } else {
-            return buf.split("\n")
+            result = buf.split("\n")
         }
+        return _.filter(result,(s:string) => {return s.length > 0})
     }
 
     public get_files_in_commit(commit:string) : string[] {

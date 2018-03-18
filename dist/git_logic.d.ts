@@ -21,6 +21,9 @@ export declare class GitLogic {
     stash_with_untracked_excluding(dir_to_exclude: string): boolean;
     stash_pop(): void;
     init(): void;
+    readonly current_branch: string;
+    create_branch(branch_name: string, branching_point: string): string;
+    rebase_branch_from_point_onto(branch: string, from_point: string, onto: string): string | string[] | Buffer;
     readonly commit_count: number;
     get_tags_matching(pattern: string): string[];
     to_lines(buf: Buffer | string[] | string): string[];
