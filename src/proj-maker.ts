@@ -4,7 +4,7 @@ import {LOG} from './logger'
 import * as _ from "lodash"
 import chalk from 'chalk'
 import {HygenRunner} from './hygen_runner'
-import { GitConnectorSync } from './git_connector';
+import { GitLogic } from './git_logic';
 
 const APP_VERSION = "0.2.0"
 
@@ -34,11 +34,11 @@ export class ProjMaker {
 
     constructor() {
         this.runHygen = HygenRunner.runHygen
-        this.gitConnector = new GitConnectorSync()
+        this.gitConnector = new GitLogic()
         ProjMaker.overrideMockables(this)
     }
     public runHygen :  ((hygen_args: string[], template_path: AbsPath, output_path: AbsPath ) => void)   // allow mocking
-    public gitConnector : GitConnectorSync  // allow mocking
+    public gitConnector : GitLogic  // allow mocking
 
 
     public get templatedir() : AbsPath {
@@ -120,5 +120,10 @@ export class ProjMaker {
                 git.stash_pop()
             }
         }
+
+        // tag the commit with "pmAFTER_ADDING_<unit-name>"
+        let tagname = `pmAFTER_ADDING_${unit_name}`
+        // git.tag(tagname)
+
     }
 }

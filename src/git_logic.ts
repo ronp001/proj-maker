@@ -2,13 +2,13 @@ import {execFileSync} from "child_process"
 import {AbsPath} from "./path_helper"
 import { isArray } from "util";
 
-export namespace GitConnectorError {
+export namespace GitLogicError {
     export class NotConnectedToProject extends Error {}
     export class InvalidPath extends Error {}
     export class AddFailed extends Error {}
 }
 
-export class GitConnectorSync {
+export class GitLogic {
     public constructor(path? : AbsPath) {
         if ( path != null ) {
             this._path = path
@@ -27,10 +27,10 @@ export class GitConnectorSync {
     private _runcmd(gitcmd:string, args:string[]=[]) : string {
         let old_dir : string | null = null
         if ( this._path.abspath == null ) {
-            throw new GitConnectorError.NotConnectedToProject("GitConnectorSync: command executed before setting project_dir")
+            throw new GitLogicError.NotConnectedToProject("GitConnectorSync: command executed before setting project_dir")
         }
         if ( !this._path.isDir ) {
-            throw new GitConnectorError.InvalidPath("GitConnectorSync: project_dir is not an existing directory")            
+            throw new GitLogicError.InvalidPath("GitConnectorSync: project_dir is not an existing directory")            
         }
         try {
             try {
@@ -97,7 +97,7 @@ export class GitConnectorSync {
         try {
             this.runcmd("add", paths)
         } catch(e) {
-            throw new GitConnectorError.AddFailed(e.message)
+            throw new GitLogicError.AddFailed(e.message)
         }
     }
 

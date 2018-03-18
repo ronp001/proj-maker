@@ -4,7 +4,7 @@ import * as mockfs from 'mock-fs'
 import * as fs from 'fs'
 import * as os from 'os'
 import { AbsPath } from "../path_helper";
-import { GitConnectorSync, GitConnectorError } from "../git_connector";
+import { GitLogic, GitLogicError } from "../git_logic";
 
 
 let sandbox_path = new AbsPath(os.tmpdir()).add('_sandbox')
@@ -48,7 +48,7 @@ function prepareSandbox() {
     proj1.add('a-file').saveStrSync('test')
     
     // initialize a git repository in the proj1 dir
-    let git = new GitConnectorSync(proj1.parent)
+    let git = new GitLogic(proj1.parent)
     expect(()=>{git.init()}).not.toThrow()
     expect(()=>{git.add('proj1/a-file')}).not.toThrow()
     expect(()=>{git.commit('added a-file')}).not.toThrow()
@@ -57,7 +57,7 @@ function prepareSandbox() {
     try {
         git.add('no-such-file')
     } catch(e) {
-        expect(e).toBeInstanceOf(GitConnectorError.AddFailed)
+        expect(e).toBeInstanceOf(GitLogicError.AddFailed)
         console.log("message when attempting to add non-existent file:\n",e.message)
     }
 
@@ -94,7 +94,7 @@ describe('git verification', () => {
         console.log("tmp_proj path:", tmp_proj.abspath)
 
         // recognize that it's not a git repo
-        let git = new GitConnectorSync()
+        let git = new GitLogic()
         git.project_dir = tmp_proj
         expect(git.is_repo).toBeFalsy()
         expect(git.project_dir.abspath).toEqual(tmp_proj.abspath)
@@ -126,22 +126,35 @@ describe('new unit', () => {
         expect(generator_path.isDir).toBeTruthy()
     })
 
-    test('creates', async () => {
+    test('creates new_unit', async () => {
+        //-------------------------------------------------------------------------------------------
+        // in this test we use ProjMaker to create <out>/proj1/new_unit using the 'basic' generator
+        // we expect a new commit with the contents as well as a tag
+        //-------------------------------------------------------------------------------------------
         let pm = new ProjMaker
         let projdir = output_path.add('proj1')
         let unitdir = projdir.add('new_unit')
         unitdir.mkdirs()
         process.chdir(unitdir.toString())
         
-        let git = new GitConnectorSync(projdir)
+        // remember how many commit were before creating the new unit
+        let git = new GitLogic(projdir)
         expect(git.is_repo).toBeTruthy()
         let orig_commit_count = git.commit_count
 
+        // execute unit creation
         await pm.new_unit('basic','new_unit')
+
+        // verify that the expected files were created
         let file1 = unitdir.add('file1')
         expect(file1.isFile).toBeTruthy()
         expect(file1.contentsLines[0]).toEqual("this is file1 in new_unit")
-
+        expect(unitdir.add('file2').isFile).toBeTruthy()
+        
+        // make sure a commit was performed
         expect(git.commit_count).toEqual(orig_commit_count+1)
+
+        // make sure we have a new tag
+
     })
 })
