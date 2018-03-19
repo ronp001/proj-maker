@@ -170,7 +170,7 @@ describe('new unit', () => {
         expect(tags[0]).toEqual('pmAFTER_ADDING_new_unit')
 
         // ensure only the two new files were included in the commit
-        let files_in_commit = git.get_files_in_commit(tags[0])
+        let files_in_commit = git.get_files_in_commit(tags[0])//+"~1")
         expect(files_in_commit).toHaveLength(3)
         expect(files_in_commit[0]).toMatch(/.pminfo.json/)
         expect(files_in_commit[1]).toMatch(/file1/)

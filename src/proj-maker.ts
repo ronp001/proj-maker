@@ -201,6 +201,9 @@ export class ProjMaker {
             this.gitLogic.add(this.unitdir.abspath)
             this.gitLogic.commit(`[proj-maker autocommit] added unit '${unit_name}' of type '${unit_type}'`)
 
+            // create an extra commit to serve as the start point for the rebase chain
+            // this.gitLogic.empty_commit(`[proj-maker autocommit] empty commit after adding ${unit_name}`)
+
 
         } finally {   
             // undo the stash
