@@ -104,9 +104,6 @@ describe('new unit', async () => {
         let pm = new ProjMaker
         process.chdir('/empty')
         
-        // override the 'runHygen' function with a mock
-        // pm.runHygen = jest.fn()
-
         pm.new_unit('basic','my-unit')
         let outdir = new AbsPath('/empty/my-unit')
         expect(outdir.isDir).toBeTruthy()

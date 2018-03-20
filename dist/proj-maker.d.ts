@@ -38,8 +38,12 @@ export declare namespace ProjMakerError {
     class InPmBranch extends ProjMakerError {
         constructor(branch: string);
     }
+    class StashFailed extends ProjMakerError {
+        constructor();
+    }
 }
 export declare class ProjMaker {
+    in_extra_commit_mode: boolean;
     static overrideMockables(instance: ProjMaker): void;
     private _verbose;
     verbose: boolean;
@@ -52,6 +56,8 @@ export declare class ProjMaker {
     getDirForGenerator(unit_type: string, generator_version?: number | null): AbsPath;
     getDirForUnit(unit_name: string): AbsPath;
     _explain(str: string, cmd_and_params?: string[]): void;
+    private _post_msg;
+    private info(level, msg, post_msg);
     private did_stash;
     private unitdir;
     private prepareEnvironment(unit_type, unit_name, create_unitdir, generator_version?);
@@ -61,5 +67,6 @@ export declare class ProjMaker {
     private unit_name;
     readonly tagname: string;
     get_tagname(unit_name?: string): string;
+    cleanup_branches(switch_to: string, delete_branches: string[]): void;
     update_unit(unit_name?: string): Promise<void>;
 }

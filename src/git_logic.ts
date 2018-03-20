@@ -83,12 +83,7 @@ export class GitLogic {
     }
 
     public get has_head() : boolean {
-        try {
-            this.current_branch
-        } catch(e) {
-            return false
-        }
-        return true        
+        return (this.current_branch_or_null != null)
     }
 
     public get is_repo() : boolean {
@@ -138,12 +133,24 @@ export class GitLogic {
         this.runcmd("init")
     }
 
+    public get current_branch_or_null() : string | null {
+        try {
+            return this.runcmd("rev-parse", ["--abbrev-ref", "HEAD"]).toString().trim()
+        } catch(e) {
+            return null
+        }
+    }
+
     public get current_branch() : string {
-        return this.runcmd("rev-parse", ["--abbrev-ref", "HEAD"]).toString().trim()
+        return this.current_branch_or_null || ""
     }
     
     public create_branch(branch_name:string, branching_point:string)  {
         return this.runcmd("checkout", ["-b", branch_name, branching_point]).toString().trim()
+    }
+
+    public delete_branch(branch_name:string)  {
+        return this.runcmd("branch", ["-D", branch_name]).toString().trim()
     }
 
     public checkout(branch_name:string) {
