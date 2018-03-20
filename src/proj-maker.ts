@@ -25,6 +25,7 @@ export namespace ProjMakerError {
     export class NotProjMakerUnit extends ProjMakerError { constructor(unit_path:string, reason:string) { super(`Not a proj-maker unit (${reason}): ${unit_path}`) } }
     export class MissingCreationTag extends ProjMakerError { constructor(tag:string) { super(`Could not find unit creation tag (${tag}) in git repo`) } }
     export class TagExists extends ProjMakerError { constructor(tag:string) { super(`Creation tag (${tag}) already exists in git repo`) } }
+    export class InPmBranch extends ProjMakerError { constructor(branch:string) { super(`Current branch (${branch}) appears to be a proj-maker branch`) } }
 }
 
 export class ProjMaker {
@@ -131,6 +132,11 @@ export class ProjMaker {
             throw new ProjMakerError.NotInGitRepo()
         }
 
+        // make sure the current branch is not a pm- branch
+        let branch_name = git.current_branch
+        if ( branch_name.startsWith("pm-") ) {
+            throw new ProjMakerError.InPmBranch(branch_name)
+        }
 
         if ( create_unitdir ) {
             // verify that the tag doesn't already exist
@@ -177,6 +183,10 @@ export class ProjMaker {
         return this.unitdir.add(".pminfo.json")
     }
 
+    public create_pminfo(unit_type:string) {
+        this.pminfo_path.saveStrSync(JSON.stringify({unit_type: unit_type}))
+    }
+
     public async new_unit(unit_type:string, unit_name:string, generator_version:number|null=null)  {
 
         LOG(`type: ${unit_type}  name: ${unit_name}`)
@@ -195,14 +205,14 @@ export class ProjMaker {
             await this.runHygen([unit_type, this.getCmdForGenerator(generator_version), '--name', unit_name], this.templatedir, this.unitdir)
             
             // save proj-maker info about the unit
-            this.pminfo_path.saveStrSync(JSON.stringify({unit_type: unit_type}))
+            this.create_pminfo(unit_type)
 
             // add and commit the changes
             this.gitLogic.add(this.unitdir.abspath)
             this.gitLogic.commit(`[proj-maker autocommit] added unit '${unit_name}' of type '${unit_type}'`)
 
             // create an extra commit to serve as the start point for the rebase chain
-            // this.gitLogic.empty_commit(`[proj-maker autocommit] empty commit after adding ${unit_name}`)
+            this.gitLogic.empty_commit(`[proj-maker autocommit] empty commit after adding ${unit_name}`)
 
 
         } finally {   
@@ -274,22 +284,28 @@ export class ProjMaker {
             orig_branch_name = this.gitLogic.current_branch
             
             let tag_after_old_version = `${this.get_tagname(unit_name)}`
-            let tag_before_old_version = `${this.get_tagname(unit_name)}~1`
-            let tmp_branch_name = `tmp-pm-updating-${unit_name}`
+            let tag_before_old_version = `${this.get_tagname(unit_name)}~2`
+            let tmp_branch_name = `pm-before-updating-${unit_name}`
             let target_branch_name = `pm-updating-${unit_name}`
 
             // create a temporary branch from right before the tag
-            this.gitLogic.create_branch(tmp_branch_name, tag_before_old_version)
+            this.gitLogic.create_branch(tmp_branch_name, tag_after_old_version)
 
-            // defensive programming:  verify that the unit directory has disappeared
-            if ( this.unitdir.isDir && this.unitdir.dirContents && this.unitdir.dirContents.length > 0 ) {
+            // defensive programming:  verify that the unit directory exists
+            if ( !this.unitdir.isDir) {
                 console.log(chalk.bgRedBright("WARNING: git current branch is now " + tmp_branch_name))
-                throw new ProjMakerError.UnexpectedState(`${this.unitdir.abspath} not empty after creating branch from tag: ${tag_before_old_version}`)
+                throw new ProjMakerError.UnexpectedState(`${this.unitdir.abspath} does not exist after creating branch from tag: ${tag_after_old_version}`)
             }
+
+            // remove the unitdir contents
+            this.unitdir.rmrfdir(new RegExp(`${unit_name}`))
 
             // run the latest version of the generator
             await this.runHygen([unit_type, 'new', '--name', unit_name], this.templatedir, this.unitdir)
             
+            // save proj-maker info about the unit
+            this.create_pminfo(unit_type)
+
             // add and commit the newly created unit
             this.gitLogic.add(this.unitdir.abspath)
             this.gitLogic.commit(`[proj-maker autocommit] recreated unit '${unit_name}' of type '${unit_type}' (NEW VERSION of '${unit_type}')`)

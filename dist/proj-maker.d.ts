@@ -35,6 +35,9 @@ export declare namespace ProjMakerError {
     class TagExists extends ProjMakerError {
         constructor(tag: string);
     }
+    class InPmBranch extends ProjMakerError {
+        constructor(branch: string);
+    }
 }
 export declare class ProjMaker {
     static overrideMockables(instance: ProjMaker): void;
@@ -53,6 +56,7 @@ export declare class ProjMaker {
     private unitdir;
     private prepareEnvironment(unit_type, unit_name, create_unitdir, generator_version?);
     readonly pminfo_path: AbsPath;
+    create_pminfo(unit_type: string): void;
     new_unit(unit_type: string, unit_name: string, generator_version?: number | null): Promise<void>;
     private unit_name;
     readonly tagname: string;

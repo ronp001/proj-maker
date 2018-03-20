@@ -128,24 +128,42 @@ describe('new unit', () => {
         expect(generator_path.isDir).toBeTruthy()
     })
 
-    test('creates new_unit', async () => {
-        //-------------------------------------------------------------------------------------------
-        // in this test we use ProjMaker to create <out>/proj1/new_unit using the 'basic' generator
-        // we expect a new commit with the contents as well as a tag
-        //-------------------------------------------------------------------------------------------
+    function init_project() : {pm:ProjMaker,git:GitLogic,unitdir:AbsPath} {
         let pm = new ProjMaker
         let projdir = output_path.add('proj1')
         let unitdir = projdir.add('new_unit')
         unitdir.mkdirs()
         process.chdir(unitdir.toString())
+
+        let git = new GitLogic(projdir)
+        expect(git.is_repo).toBeTruthy()
+
+        return {pm: pm, git: git, unitdir: unitdir}
+    }
+    test('does not create if in pm-* branch', async () => {
+        let proj = init_project()
+
+        // create a pm- branch
+        proj.git.create_branch("pm-test", "HEAD")
+
+        await expect(proj.pm.new_unit('basic','new_unit')).rejects.toThrow(/proj-maker branch/i)
+    })
+
+    test('creates new_unit', async () => {
+        //-------------------------------------------------------------------------------------------
+        // in this test we use ProjMaker to create <out>/proj1/new_unit using the 'basic' generator
+        // we expect a new commit with the contents as well as a tag
+        //-------------------------------------------------------------------------------------------
+        let proj = init_project()
+        let unitdir = proj.unitdir
+        let projdir = unitdir.parent
+        let git = proj.git
         
         // create a file that should not be included in the commit
         projdir.add('extrafile').saveStrSync("this file should not be in the commit")
         expect(projdir.add('extrafile').isFile).toBeTruthy()
 
         // remember how many commit and tags were before creating the new unit
-        let git = new GitLogic(projdir)
-        expect(git.is_repo).toBeTruthy()
         let orig_commit_count = git.commit_count
         let orig_tags = git.get_tags_matching("pmAFTER_ADDING*")
 
@@ -153,7 +171,7 @@ describe('new unit', () => {
         git.add(projdir.add('extrafile').abspath)
 
         // execute unit creation
-        await pm.new_unit('basic','new_unit')
+        await proj.pm.new_unit('basic','new_unit')
 
         // verify that the expected files were created
         let file1 = unitdir.add('file1')
@@ -162,7 +180,7 @@ describe('new unit', () => {
         expect(unitdir.add('file2').isFile).toBeTruthy()
         
         // make sure a commit was performed
-        expect(git.commit_count).toEqual(orig_commit_count+1)
+        expect(git.commit_count).toEqual(orig_commit_count+2)
 
         // make sure we have a new tag
         let tags = git.get_tags_matching("pmAFTER_ADDING*")
@@ -170,7 +188,7 @@ describe('new unit', () => {
         expect(tags[0]).toEqual('pmAFTER_ADDING_new_unit')
 
         // ensure only the two new files were included in the commit
-        let files_in_commit = git.get_files_in_commit(tags[0])//+"~1")
+        let files_in_commit = git.get_files_in_commit(tags[0]+"~1")
         expect(files_in_commit).toHaveLength(3)
         expect(files_in_commit[0]).toMatch(/.pminfo.json/)
         expect(files_in_commit[1]).toMatch(/file1/)
