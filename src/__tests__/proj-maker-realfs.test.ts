@@ -4,7 +4,7 @@ import * as mockfs from 'mock-fs'
 import * as fs from 'fs'
 import * as os from 'os'
 import { AbsPath } from "../path_helper";
-import { GitLogic, GitLogicError } from "../git_logic";
+import { GitLogic, GitLogicError, GitState } from "../git_logic";
 
 
 let sandbox_path = new AbsPath(os.tmpdir()).add('_sandbox')
@@ -73,8 +73,6 @@ function prepareSandbox() {
 
 beforeEach(() => {
     process.env['HYGEN_TMPLS'] = templates_path.toString()
-    prepareSandbox()    
-    process.chdir(output_path.toString())
 })
   
 afterEach(() => {
@@ -85,6 +83,8 @@ afterEach(() => {
 describe('git verification', () => {
 
     test('can identify whether in git repo', async () => {       
+        prepareSandbox()
+
         // prepare temp directory outside of the main git repo
         let tmp_proj = tmp_path.add('tmp-project-for-unit-tests')
         if ( tmp_proj.isDir ) {
@@ -123,9 +123,72 @@ describe('git verification', () => {
     })
 })
 
+describe('git state identification', () => {
+    function init() : GitLogic {
+        let projdir = output_path.add('proj')
+        projdir.mkdirs()
+        let git = new GitLogic(projdir)
+
+        return git
+    }
+
+    test('identify stages along a normal work process', () => {
+        let git = init()
+        expect(git.state).toEqual(GitState.NonRepo)
+
+        // identify no commits
+        git.init()        
+        expect(git.state).toEqual(GitState.NoCommits)
+
+        // identify clean
+        git.empty_commit('initial')
+        expect(git.state).toEqual(GitState.Clean)
+        
+        // identify file in workdir
+        let f = git.project_dir.add('workdir-file')
+        f.saveStrSync("123")
+        expect(git.state).toEqual(GitState.Dirty)
+
+        // identify file in index
+        git.add('workdir-file')
+        expect(git.state).toEqual(GitState.Dirty)
+    
+        // identify clean directory again
+        git.commit('added file')
+        expect(git.state).toEqual(GitState.Clean)
+
+        // create a 'merge-in-progress' situation
+        git.create_branch('b1', 'HEAD')
+        expect(git.state).toEqual(GitState.Clean)
+        f.saveStrSync("1234")
+        expect(git.state).toEqual(GitState.Dirty)
+        git.add(f.abspath)
+        expect(git.state).toEqual(GitState.Dirty)
+        git.commit('modified file')
+        expect(git.state).toEqual(GitState.Clean)
+
+        git.checkout('master')
+        expect(git.state).toEqual(GitState.Clean)
+        f.saveStrSync("0123")
+        expect(git.state).toEqual(GitState.Dirty)
+        git.add(f.abspath)
+        expect(git.state).toEqual(GitState.Dirty)
+        git.commit('modified file')
+        expect(git.state).toEqual(GitState.Clean)
+
+        expect(() => {git.merge('b1')}).toThrow(/failed/)
+        expect(git.state).toEqual(GitState.OpInProgress)
+    })
+    test('identify rebase/merge', () => {
+        
+    })
+})
+
 describe('new unit', () => {
     beforeEach(() => {
+        prepareSandbox()    
         expect(generator_path.isDir).toBeTruthy()
+        process.chdir(output_path.toString())
     })
 
     function init_project() : {pm:ProjMaker,git:GitLogic,unitdir:AbsPath} {

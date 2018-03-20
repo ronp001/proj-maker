@@ -4,7 +4,7 @@
 * ~~S refuse to work in a pm-* branch~~
 * ~~S create .pminfo.json in update too~~
 * L 'pm apply' ('pm update --continue'?): after the rebase has been finalized: copy the results to the original branch (need to save branch name in .pminfo.json)
-* L recognize git state:  bare (no commits yet), clean working directory, workdir with files, rebase/merge in progress
+* ~~L recognize git state:  bare (no commits yet), clean working directory, workdir with files, rebase/merge in progress~~
 * S abort if stash did not succeed (i.e., workdir state is not 'clean' after stash complete)
 * L create the 'fcap styles' repository:  includes prototype projects and hygen templates dir
 * L unit test for 'update':  try different merge options
