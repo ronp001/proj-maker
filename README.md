@@ -102,7 +102,7 @@ you need the following installed (preferably globally):
 ## limitations
 
 this is an experimental tool, and it has quite a few limitations, many of which are
-not yet know.
+not yet known.
 
 some of the known limitations:
 * the tool currently assumes that the generator creates a 'project' (i.e., that everything created by the generator belongs in a specific folder hierarchy)
