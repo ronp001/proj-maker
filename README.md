@@ -14,7 +14,7 @@ Imagine the following scenario:
 * a new version of the generator is released. 
 * now what? if you run the new version of the generator, you lose all your changes.  how do you benefit from the new generator in the existing project?
 
-`proj-maker` is a utility for experimenting with an idea about use `git` in conjuction with `hygen` in order to "reapply" the new version of the generator on the existing project, so that you can use the new generator while keeping the changes 
+`proj-maker` is a utility for experimenting with an idea about using `git` in conjuction with `hygen` in order to "reapply" the new version of the generator on the existing project, so that you can use the new generator while keeping the changes 
 you made to the code created by the old generator.
 
 For some more background see the [evolving templates](https://github.com/jondot/hygen/issues/16) discussion in the `hygen` project.
