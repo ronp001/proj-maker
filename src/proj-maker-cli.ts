@@ -37,8 +37,13 @@ export default class ProjMakerCli extends CliApp {
         
         program.command('update [unit-name]')
         .description("updates the current unit to the latest version of the generator")
+        .option('-n, --generator-version <n>', 'use an older version of the generator', parseInt)
         .action(this.action(this.update));
-        
+                
+        program.command('continue')
+        .description("continues an update operation.  call this after resolving merge conflicts")
+        .action(this.action(this.continue_update));
+                
         program.command('status')
         .alias('s')
         .description("show info")
@@ -50,6 +55,13 @@ export default class ProjMakerCli extends CliApp {
         .action(this.action(this.list_unit_types));
     }
 
+    private async continue_update() {
+        try {
+            await this.proj_maker.continue_update()
+        } catch ( e ) {
+            console.error(e.message)
+        }
+    }
 
     private async new_unit(unit_type: string, name: string, options:any) {
         try {
@@ -59,9 +71,15 @@ export default class ProjMakerCli extends CliApp {
         }
     }
 
-    private async update(unit_name? : string) {
+    private async update(unit_name_or_options? : any, options? : any) {
+        let unit_name = null
+        if ( typeof unit_name_or_options == "string" ) {
+            unit_name = unit_name_or_options
+        } else {
+            options = unit_name_or_options
+        }
         try {
-            await this.proj_maker.update_unit(unit_name)
+            await this.proj_maker.update_unit(unit_name, options && options.generatorVersion ? options.generatorVersion : null)
         } catch ( e ) {
             console.error(e.message)
         }

@@ -141,7 +141,7 @@ describe('git state identification', () => {
         expect(git.state).toEqual(GitState.NoCommits)
 
         // identify clean
-        git.empty_commit('initial')
+        git.commit_allowing_empty('initial')
         expect(git.state).toEqual(GitState.Clean)
         
         // identify file in workdir

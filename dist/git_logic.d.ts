@@ -18,6 +18,7 @@ export declare enum GitState {
 }
 export declare class GitLogic {
     constructor(path?: AbsPath);
+    auto_connect(): void;
     private _path;
     project_dir: AbsPath;
     runcmd: (gitcmd: string, args?: string[]) => string | string[] | Buffer;
@@ -37,6 +38,9 @@ export declare class GitLogic {
     create_branch(branch_name: string, branching_point: string): string;
     delete_branch(branch_name: string): string;
     checkout(branch_name: string): void;
+    checkout_dir_from_branch(dir: string, branch_name: string): void;
+    set_branch_description(branch: string, description: string): void;
+    get_branch_description(branch: string): string[];
     merge(branch_name: string): void;
     rebase_branch_from_point_onto(branch: string, from_point: string, onto: string): string | string[] | Buffer;
     readonly commit_count: number;
@@ -46,5 +50,5 @@ export declare class GitLogic {
     create_tag(tagname: string): void;
     add(path: string | string[]): void;
     commit(comment: string): void;
-    empty_commit(comment: string): void;
+    commit_allowing_empty(comment: string): void;
 }

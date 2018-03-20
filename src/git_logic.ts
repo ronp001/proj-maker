@@ -25,6 +25,14 @@ export class GitLogic {
         }
     }
 
+    public auto_connect() {
+        let gitroot = new AbsPath(process.cwd()).findUpwards(".git",true).parent
+        if ( !gitroot.isDir ) {
+            throw "not in git repo"
+        }
+        this.project_dir = gitroot
+    }
+
     private _path : AbsPath = new AbsPath(null)
 
     public get project_dir() { return this._path }
@@ -157,6 +165,17 @@ export class GitLogic {
         this.runcmd("checkout", [branch_name])
     }
     
+    public checkout_dir_from_branch(dir:string, branch_name:string) {
+        this.runcmd("checkout", [branch_name, "--", dir])
+    }
+    
+    public set_branch_description(branch:string, description:string) {
+        this.runcmd('config', [`branch.${branch}.description`, description])
+    }
+    public get_branch_description(branch:string) : string[] {
+        return this.to_lines(this.runcmd('config', [`branch.${branch}.description`]))
+    }
+
     public merge(branch_name:string) {
         this.runcmd("merge", [branch_name])
     }
@@ -215,7 +234,7 @@ export class GitLogic {
     public commit(comment:string) {
         this.runcmd("commit", ["-m",comment])
     }
-    public empty_commit(comment:string) {
+    public commit_allowing_empty(comment:string) {
         this.runcmd("commit", ["--allow-empty","-m",comment])
     }
 }

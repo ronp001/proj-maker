@@ -4,8 +4,9 @@ export default class ProjMakerCli extends CliApp {
     protected beforeCommand(): void;
     protected afterCommand(): void;
     protected _init(): void;
+    private continue_update();
     private new_unit(unit_type, name, options);
-    private update(unit_name?);
+    private update(unit_name_or_options?, options?);
     private status();
     private list_unit_types();
 }
