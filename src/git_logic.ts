@@ -10,6 +10,14 @@ export namespace GitLogicError {
     export class AddFailed extends Error {}
 }
 
+export enum GitState {  Undefined="Undefined", // project path was not set
+                        NonRepo="Non Repo", // project path is not in a git repo
+                        NoCommits="No Commits", // git repo does not have any commits yet
+                        Dirty="Dirty", // there are uncommitted changes
+                        Clean="Clean", // no uncommitted changes
+                        OpInProgress="OpInProgress" // a rebase or merge operation is in progress
+                    }
+
 export class GitLogic {
     public constructor(path? : AbsPath) {
         if ( path != null ) {
@@ -61,6 +69,23 @@ export class GitLogic {
         }
     }
 
+    public get state() : GitState {
+        if ( !this._path.isSet ) return GitState.Undefined
+        if ( !this.is_repo) return GitState.NonRepo
+        if ( !this.has_head) return GitState.NoCommits
+        try {
+            this.merge("HEAD")
+        } catch (e) {
+            return GitState.OpInProgress
+        }
+        if ( this.parsed_status.length > 0) return GitState.Dirty
+        return GitState.Clean
+    }
+
+    public get has_head() : boolean {
+        return (this.current_branch_or_null != null)
+    }
+
     public get is_repo() : boolean {
         try {
             this.status()
@@ -72,6 +97,10 @@ export class GitLogic {
 
     public status() {
         this.runcmd("status")
+    }
+
+    public get parsed_status() : string[] {
+        return this.to_lines(this.runcmd('status', ['--porcelain']))
     }
 
     public get stash_list() : string[] {
@@ -104,12 +133,32 @@ export class GitLogic {
         this.runcmd("init")
     }
 
+    public get current_branch_or_null() : string | null {
+        try {
+            return this.runcmd("rev-parse", ["--abbrev-ref", "HEAD"]).toString().trim()
+        } catch(e) {
+            return null
+        }
+    }
+
     public get current_branch() : string {
-        return this.runcmd("rev-parse", ["--abbrev-ref", "HEAD"]).toString().trim()
+        return this.current_branch_or_null || ""
     }
     
     public create_branch(branch_name:string, branching_point:string)  {
         return this.runcmd("checkout", ["-b", branch_name, branching_point]).toString().trim()
+    }
+
+    public delete_branch(branch_name:string)  {
+        return this.runcmd("branch", ["-D", branch_name]).toString().trim()
+    }
+
+    public checkout(branch_name:string) {
+        this.runcmd("checkout", [branch_name])
+    }
+    
+    public merge(branch_name:string) {
+        this.runcmd("merge", [branch_name])
     }
 
     public rebase_branch_from_point_onto(branch:string, from_point:string, onto:string) {
