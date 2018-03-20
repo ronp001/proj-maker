@@ -35,6 +35,7 @@ export declare class GitLogic {
     init(): void;
     readonly current_branch_or_null: string | null;
     readonly current_branch: string;
+    show_branching_graph(): void;
     create_branch(branch_name: string, branching_point: string): string;
     delete_branch(branch_name: string): string;
     checkout(branch_name: string): void;

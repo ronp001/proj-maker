@@ -28,7 +28,7 @@ export namespace ProjMakerError {
     export class TagExists extends ProjMakerError { constructor(tag:string) { super(`Creation tag (${tag}) already exists in git repo`) } }
     export class InPmBranch extends ProjMakerError { constructor(branch:string) { super(`Current branch (${branch}) appears to be a proj-maker branch`) } }
     export class NotInPmBranch extends ProjMakerError { constructor(branch:string) { super(`Current branch (${branch}) is not a proj-maker branch`) } }
-    export class OpInProgress extends ProjMakerError { constructor() { super(`Please finalize the rebase operation first`) } }
+    export class OpInProgress extends ProjMakerError { constructor() { super(`Please finalize the rebase operation first (resolve, then 'git add' resolved files, then 'git rebase --continue') then rerun 'proj-maker continue'`) } }
     export class StashFailed extends ProjMakerError { constructor() { super(`The 'git stash' operation did not leave a clean environment`) } }
 }
 
@@ -101,7 +101,7 @@ export class ProjMaker {
     }
 
     public _explain(str:string, cmd_and_params:string[]=[]) {
-        if ( !this.verbose ) return
+        // if ( !this.verbose ) return
 
         console.log(chalk.red(str))
         let cmd = cmd_and_params.shift()
@@ -462,24 +462,38 @@ export class ProjMaker {
 
             // create a temporary branch from right before the tag
             this.info(3,`creating temporary branch: ${this.tmp_branch_name}`,"branch created")
-            this.gitLogic.create_branch(this.tmp_branch_name, tag_after_old_version)
+            this.gitLogic.create_branch(this.tmp_branch_name, tag_before_old_version)
             this.changed_branch = true
 
-            // defensive programming:  verify that the unit directory exists
-            this.info(3,`making sure unit dir ${this.unitdir.abspath} still exists after branch creation`,"dir exists")
-            if ( !this.unitdir.isDir) {
-                console.log(chalk.bgRedBright("WARNING: git current branch is now " + this.tmp_branch_name))
-                throw new ProjMakerError.UnexpectedState(`${this.unitdir.abspath} does not exist after creating branch from tag: ${tag_after_old_version}`)
-            }
+            const EXPECTING_DIR_TO_EXIST = false
 
-            // remove the unitdir contents
-            this.info(3,`removing previous contents of ${this.unitdir.abspath}`,"contents removed")
-            this.unitdir.rmrfdir(new RegExp(`${unit_name}`))
+            if (EXPECTING_DIR_TO_EXIST) {
+                // defensive programming:  verify that the unit directory exists
+                this.info(3,`making sure unit dir ${this.unitdir.abspath} still exists after branch creation`,"dir exists")
+                if ( !this.unitdir.isDir) {
+                    console.log(chalk.bgRedBright("WARNING: git current branch is now " + this.tmp_branch_name))
+                    throw new ProjMakerError.UnexpectedState(`${this.unitdir.abspath} does not exist after creating branch from tag: ${tag_after_old_version}`)
+                }
+                
+                // remove the unitdir contents
+                this.info(3,`removing previous contents of ${this.unitdir.abspath}`,"contents removed")
+                this.unitdir.rmrfdir(new RegExp(`${unit_name}`))
+            } else {
+                // defensive programming:  verify that the unit directory does not exist
+                this.info(3,`making sure unit dir ${this.unitdir.abspath} does not exist after branch creation`,"dir does not exist")
+                if ( this.unitdir.isDir) {
+                    console.log(chalk.bgRedBright("WARNING: git current branch is now " + this.tmp_branch_name))
+                    throw new ProjMakerError.UnexpectedState(`${this.unitdir.abspath} does not exist after creating branch from tag: ${tag_after_old_version}`)
+                }                
+            }
 
             // run the latest version of the generator
             this.info(3,`running the generator`,"generator execution complete")
             await this.runHygen([unit_type, this.getCmdForGenerator(generator_version), '--name', unit_name], this.templatedir, this.unitdir)
-            
+
+            this.explain("after generator", ["ls", "-lR", this.unitdir.abspath])
+            this.explain("after generator", ["cat", this.unitdir.abspath + "/dist/hithere.js"])
+
             // save proj-maker info about the unit
             this.info(3,`recreating .pminfo.json`,"created")
             this.create_pminfo(unit_type)
@@ -523,11 +537,15 @@ export class ProjMaker {
             
             this.gitLogic.set_branch_description(this.work_branch_name, JSON.stringify(updateinfo))
 
+            this.explain("before rebasing", ["ls", "-lR", this.unitdir.abspath])
+            this.explain("before rebasing", ["cat", this.unitdir.abspath + "/dist/hithere.js"])
 
             // rebase the target branch onto the temporary one (this operation will fail if there are merge conflicts)
             this.info(3,`rebasing the new (${this.work_branch_name}) onto the temp one (${this.tmp_branch_name})`,"branch rebased")
             try {
                 this.gitLogic.rebase_branch_from_point_onto(this.work_branch_name, tag_after_old_version, this.tmp_branch_name)
+                this.explain("after rebasing", ["ls", "-lR", this.unitdir.abspath])
+                this.explain("after rebasing", ["cat", this.unitdir.abspath + "/dist/hithere.js"])
             } catch ( e ) {
                 this.info(3,`checking why the operation failed`,"reason identified", "branch operation did not complete")
                 if ( this.gitLogic.state == GitState.OpInProgress) {

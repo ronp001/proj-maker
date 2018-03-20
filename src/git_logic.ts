@@ -153,8 +153,15 @@ export class GitLogic {
         return this.current_branch_or_null || ""
     }
     
+    public show_branching_graph() {
+        this.runcmd("log",["--graph", "--pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset%n'", "--abbrev-commit", "--date=relative", "--branches"])
+    }
+
     public create_branch(branch_name:string, branching_point:string)  {
-        return this.runcmd("checkout", ["-b", branch_name, branching_point]).toString().trim()
+        let result = this.runcmd("checkout", ["-b", branch_name, branching_point]).toString().trim()
+        // this.runcmd("lgb")
+        this.show_branching_graph()
+        return result
     }
 
     public delete_branch(branch_name:string)  {
@@ -163,6 +170,7 @@ export class GitLogic {
 
     public checkout(branch_name:string) {
         this.runcmd("checkout", [branch_name])
+        this.show_branching_graph()
     }
     
     public checkout_dir_from_branch(dir:string, branch_name:string) {
@@ -178,10 +186,13 @@ export class GitLogic {
 
     public merge(branch_name:string) {
         this.runcmd("merge", [branch_name])
+        if ( branch_name != "HEAD" ) this.show_branching_graph()
     }
 
     public rebase_branch_from_point_onto(branch:string, from_point:string, onto:string) {
-        return this.runcmd("rebase", ["--onto", onto, from_point, branch])
+        let result = this.runcmd("rebase", ["--onto", onto, from_point, branch])
+        this.show_branching_graph()
+        return result
     }
 
     public get commit_count() : number {
