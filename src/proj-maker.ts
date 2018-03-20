@@ -43,7 +43,7 @@ type UpdateInfo = {
 
 export class ProjMaker {
 
-    public in_extra_commit_mode : boolean = true
+    public in_extra_commit_mode : boolean = false
     public do_not_commit_after_update : boolean = false
 
     // The following allows running ProjMaker in a test environment
@@ -368,6 +368,10 @@ export class ProjMaker {
         this.unitdir.rmrfdir(new RegExp(`${this.unit_name}`), true)
         if ( this.unitdir.isDir ) throw new ProjMakerError.UnexpectedState(`${this.unitdir.toString()} not deleted`)
 
+        this.info(3,`creating a temporary commit after previous contents removed`, "committed")
+        this.gitLogic.add(this.unitdir.abspath)
+        this.gitLogic.commit(`[proj-maker autocommit] removed dir [${this.unit_name}] before adding new version (allows subsequent updates)`)
+
         this.info(3,`getting new contents for ${this.unitdir.abspath} from the branch ${work_branch}`,"contents removed")
         let relpath = this.unitdir.relativeFrom(this.gitLogic.project_dir)
         if ( relpath == null ) throw `Unexpected state: relative path from ${this.gitLogic.project_dir.toString()} to ${this.unitdir.toString()} is null`
@@ -387,12 +391,15 @@ export class ProjMaker {
             console.log(chalk.bold.blue("---------------------------------------------------------------"))
         } else if ( this.do_not_commit_after_update ) {
             console.log(chalk.bold.blue("---------------------------------------------------------------"))
-            console.log(chalk.bold.blue("Update operation complete. Don't forget to commit!"))
+            console.log(chalk.bold.blue(`Update operation complete. Don't forget to commit and update the tag ${this.tagname}`))
             console.log(chalk.bold.blue("---------------------------------------------------------------"))
         } else {
             this.info(3, `committing changes to ${orig_branch}`, "committed")
             let version_str = this.generator_version ? `v.${this.generator_version}` : "latest version"
             this.gitLogic.commit(`[proj-maker autocommit] recreated unit '${this.unit_name}' using '${this.unit_type}' ${version_str}`)
+
+            this.info(3, `updating the tag ${this.tagname}`, "updated")
+            this.gitLogic.move_tag_to_head(this.tagname)
         }
 
         this.undo_stash()
@@ -483,7 +490,7 @@ export class ProjMaker {
                 this.info(3,`making sure unit dir ${this.unitdir.abspath} does not exist after branch creation`,"dir does not exist")
                 if ( this.unitdir.isDir) {
                     console.log(chalk.bgRedBright("WARNING: git current branch is now " + this.tmp_branch_name))
-                    throw new ProjMakerError.UnexpectedState(`${this.unitdir.abspath} does not exist after creating branch from tag: ${tag_after_old_version}`)
+                    throw new ProjMakerError.UnexpectedState(`${this.unitdir.abspath} exists after creating branch from tag: ${tag_after_old_version}`)
                 }                
             }
 

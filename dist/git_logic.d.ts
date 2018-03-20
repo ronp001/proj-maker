@@ -49,6 +49,7 @@ export declare class GitLogic {
     to_lines(buf: Buffer | string[] | string): string[];
     get_files_in_commit(commit: string): string[];
     create_tag(tagname: string): void;
+    move_tag_to_head(tagname: string): void;
     add(path: string | string[]): void;
     commit(comment: string): void;
     commit_allowing_empty(comment: string): void;

@@ -227,6 +227,11 @@ export class GitLogic {
         this.runcmd("tag", [tagname])
     }
 
+    public move_tag_to_head(tagname:string) {
+        this.runcmd("tag", ["-d", tagname])
+        this.runcmd("tag", [tagname])
+    }
+
     public add(path:string|string[]) {
         let paths : string[]
         if ( path instanceof Array ) {
