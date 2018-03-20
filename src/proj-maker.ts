@@ -31,7 +31,7 @@ export namespace ProjMakerError {
 
 export class ProjMaker {
 
-    public in_extra_commit_mode : boolean = true
+    public in_extra_commit_mode : boolean = false
 
     // The following allows running ProjMaker in a test environment
     // without worrying about having to mock the potentially dangerous functions

@@ -243,7 +243,11 @@ describe('new unit', () => {
         expect(unitdir.add('file2').isFile).toBeTruthy()
         
         // make sure a commit was performed
-        expect(git.commit_count).toEqual(orig_commit_count+2)
+        if ( proj.pm.in_extra_commit_mode ) {
+            expect(git.commit_count).toEqual(orig_commit_count+2)
+        } else {
+            expect(git.commit_count).toEqual(orig_commit_count+1)
+        }
 
         // make sure we have a new tag
         let tags = git.get_tags_matching("pmAFTER_ADDING*")
@@ -251,7 +255,8 @@ describe('new unit', () => {
         expect(tags[0]).toEqual('pmAFTER_ADDING_new_unit')
 
         // ensure only the two new files were included in the commit
-        let files_in_commit = git.get_files_in_commit(tags[0]+"~1")
+        let parent_count = proj.pm.in_extra_commit_mode ? "~1" : "~0"
+        let files_in_commit = git.get_files_in_commit(tags[0]+parent_count)
         expect(files_in_commit).toHaveLength(3)
         expect(files_in_commit[0]).toMatch(/.pminfo.json/)
         expect(files_in_commit[1]).toMatch(/file1/)
