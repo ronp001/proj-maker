@@ -1,8 +1,8 @@
 {
   "name": "proj-maker",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "keywords": [],
-  "description": "not described yet",
+  "description": "a utility for experimenting with the use of `git` in conjuction with `hygen` to `reapply` a new version of a generator to generated code which was modified",
   "main": "dist/proj-maker.js",
   "author": "Ron Perry",
   "files": [

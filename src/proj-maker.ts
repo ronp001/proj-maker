@@ -7,8 +7,6 @@ import chalk from 'chalk'
 import {HygenRunner} from './hygen_runner'
 import { GitLogic, GitState } from './git_logic';
 
-const APP_VERSION = "0.2.0"
-
 export class ProjMakerError extends Error {
     constructor(public msg: string) {super(chalk.red("ERROR -- " + msg))}
     // public get message() { return chalk.red("ERROR: proj-maker - " + this.msg) }
@@ -216,7 +214,7 @@ export class ProjMaker {
         this.info(3,'getting commit count to ensure repo has at least one commit',"got commit count")
         if ( git.commit_count == 0 ) {
             this.info(3,`repo does not have any commits - creating one.`, "empty initial commit created")
-            git.commit_allowing_empty("[proj-maker autocommit] initial commit")
+            git.commit_allowing_empty("[proj-maker autocommit (prepare_env)] initial commit")
         }
         
         this.info(3,`checking state of the repo and workdir`, "repo state acquired")
@@ -270,12 +268,12 @@ export class ProjMaker {
             // add and commit the changes
             this.info(3,"adding and committing the new dir to git","dir committed")
             this.gitLogic.add(this.unitdir.abspath)
-            this.gitLogic.commit(`[proj-maker autocommit] added unit '${unit_name}' of type '${unit_type}'`)
+            this.gitLogic.commit(`[proj-maker autocommit (new_unit)] added unit '${unit_name}' of type '${unit_type}'`)
 
             if ( this.in_extra_commit_mode ) {
                 // create an extra commit to serve as the start point for the rebase chain
                 this.info(3,"creating extra commit to avoid branching at the generation point","extra commit created")
-                this.gitLogic.commit_allowing_empty(`[proj-maker autocommit] empty commit after adding ${unit_name}`)
+                this.gitLogic.commit_allowing_empty(`[proj-maker autocommit (new_unit, extra-commit)] empty commit after adding ${unit_name}`)
             }
 
 
@@ -320,7 +318,7 @@ export class ProjMaker {
     }
 
 
-    public continue_update() {
+    public async continue_update() {
         this.info(3,'checking workdir state', "got state")
         this.gitLogic.auto_connect()
         if ( this.gitLogic.state == GitState.OpInProgress ) {
@@ -344,10 +342,17 @@ export class ProjMaker {
         this.work_branch_name = updateinfo.work_branch
         this.tmp_branch_name = updateinfo.tmp_branch
 
-        this.finalize_update()
+        await this.finalize_update()
     }
 
-    public finalize_update() {
+    public get generator_version_string() : string {
+        if ( this.generator_version ) {
+            return `${this.unit_type} v.${this.generator_version}`
+        } else {
+            return `${this.unit_type} (latest)`
+        }
+    }
+    public async finalize_update() {
         let orig_branch = this.orig_branch_name
         let work_branch = this.work_branch_name
 
@@ -368,10 +373,24 @@ export class ProjMaker {
         this.unitdir.rmrfdir(new RegExp(`${this.unit_name}`), true)
         if ( this.unitdir.isDir ) throw new ProjMakerError.UnexpectedState(`${this.unitdir.toString()} not deleted`)
 
-        this.info(3,`creating a temporary commit after previous contents removed`, "committed")
-        this.gitLogic.add(this.unitdir.abspath)
-        this.gitLogic.commit(`[proj-maker autocommit] removed dir [${this.unit_name}] before adding new version (allows subsequent updates)`)
+        // run the generator again, and create a new 'base commit'
+        this.info(3,`running the new generator in branch ${orig_branch} to create a new base commit`,"generator execution complete")
+        await this.runHygen([this.unit_type||"", this.getCmdForGenerator(this.generator_version), '--name', this.unit_name], this.templatedir, this.unitdir)
 
+        // save proj-maker info about the unit
+        this.info(3,`recreating .pminfo.json`,"created")
+        this.create_pminfo(this.unit_type||"")
+        
+        this.info(3, `committing generator output`, "committed")
+        this.gitLogic.add(this.unit_name)
+        this.gitLogic.commit(`[proj-maker autocommit (finalize_update)] output of ${this.generator_version_string}`)
+        
+        // clean the directory one more time
+        this.info(3,`removing generator output before getting user modifications`,"generator output removed")
+        this.unitdir.rmrfdir(new RegExp(`${this.unit_name}`), true)
+        if ( this.unitdir.isDir ) throw new ProjMakerError.UnexpectedState(`${this.unitdir.toString()} not deleted`)
+
+        // get the contents from the working branch
         this.info(3,`getting new contents for ${this.unitdir.abspath} from the branch ${work_branch}`,"contents removed")
         let relpath = this.unitdir.relativeFrom(this.gitLogic.project_dir)
         if ( relpath == null ) throw `Unexpected state: relative path from ${this.gitLogic.project_dir.toString()} to ${this.unitdir.toString()} is null`
@@ -386,21 +405,14 @@ export class ProjMaker {
         // quit if nothing changed
         this.info(3,`checking if anything has changed`,null)
         if ( this.gitLogic.state == GitState.Clean ) {
-            console.log(chalk.bold.blue("---------------------------------------------------------------"))
-            console.log(chalk.bold.blue("Update operation did not change anything"))
-            console.log(chalk.bold.blue("---------------------------------------------------------------"))
-        } else if ( this.do_not_commit_after_update ) {
-            console.log(chalk.bold.blue("---------------------------------------------------------------"))
-            console.log(chalk.bold.blue(`Update operation complete. Don't forget to commit and update the tag ${this.tagname}`))
-            console.log(chalk.bold.blue("---------------------------------------------------------------"))
-        } else {
-            this.info(3, `committing changes to ${orig_branch}`, "committed")
-            let version_str = this.generator_version ? `v.${this.generator_version}` : "latest version"
-            this.gitLogic.commit(`[proj-maker autocommit] recreated unit '${this.unit_name}' using '${this.unit_type}' ${version_str}`)
-
-            this.info(3, `updating the tag ${this.tagname}`, "updated")
-            this.gitLogic.move_tag_to_head(this.tagname)
+            // console.log(chalk.bold.blue("---------------------------------------------------------------"))
+            console.log(chalk.bold.blue(`Applied ${this.generator_version_string}.  No user changes.`))
         }
+        this.info(3, `committing changes to ${orig_branch}`, "committed")
+        this.gitLogic.commit_allowing_empty(`[proj-maker autocommit (finalize_update)] applied user changes after running ${this.generator_version_string}`)
+
+        this.info(3, `updating the tag ${this.tagname}`, "updated")
+        this.gitLogic.move_tag(this.tagname, "HEAD~1")
 
         this.undo_stash()
 
@@ -472,29 +484,14 @@ export class ProjMaker {
             this.gitLogic.create_branch(this.tmp_branch_name, tag_before_old_version)
             this.changed_branch = true
 
-            const EXPECTING_DIR_TO_EXIST = false
-
-            if (EXPECTING_DIR_TO_EXIST) {
-                // defensive programming:  verify that the unit directory exists
-                this.info(3,`making sure unit dir ${this.unitdir.abspath} still exists after branch creation`,"dir exists")
-                if ( !this.unitdir.isDir) {
-                    console.log(chalk.bgRedBright("WARNING: git current branch is now " + this.tmp_branch_name))
-                    throw new ProjMakerError.UnexpectedState(`${this.unitdir.abspath} does not exist after creating branch from tag: ${tag_after_old_version}`)
-                }
-                
-                // remove the unitdir contents
-                this.info(3,`removing previous contents of ${this.unitdir.abspath}`,"contents removed")
+            
+            this.info(3,`checking if ${this.unitdir.abspath} still exists after branch creation`,"dir does not exist (this is probably the first update)")
+            if ( this.unitdir.isDir) {
+                this.info(3,`removing previous contents of ${this.unitdir.abspath}`,"contents removed", "dir exists (likely updated before)")
                 this.unitdir.rmrfdir(new RegExp(`${unit_name}`))
-            } else {
-                // defensive programming:  verify that the unit directory does not exist
-                this.info(3,`making sure unit dir ${this.unitdir.abspath} does not exist after branch creation`,"dir does not exist")
-                if ( this.unitdir.isDir) {
-                    console.log(chalk.bgRedBright("WARNING: git current branch is now " + this.tmp_branch_name))
-                    throw new ProjMakerError.UnexpectedState(`${this.unitdir.abspath} exists after creating branch from tag: ${tag_after_old_version}`)
-                }                
             }
 
-            // run the latest version of the generator
+            // run the requested version of the generator
             this.info(3,`running the generator`,"generator execution complete")
             await this.runHygen([unit_type, this.getCmdForGenerator(generator_version), '--name', unit_name], this.templatedir, this.unitdir)
 
@@ -525,7 +522,7 @@ export class ProjMaker {
             this.info(3,`adding and committing new contents`,"committed")
             this.gitLogic.add(this.unitdir.abspath)
             let version_str = generator_version ? `v:${generator_version}` : "latest version"
-            this.gitLogic.commit(`[proj-maker autocommit] recreated unit '${unit_name}' using '${unit_type}' ${version_str}`)
+            this.gitLogic.commit(`[proj-maker autocommit (update_unit in tmp_branch)] recreated unit '${unit_name}' using '${unit_type}' ${version_str}`)
             
             // create the target branch (branching off the orig_branch HEAD)
             this.info(3,`creating another branch (${this.work_branch_name})`,"branch created")
@@ -545,14 +542,14 @@ export class ProjMaker {
             this.gitLogic.set_branch_description(this.work_branch_name, JSON.stringify(updateinfo))
 
             this.explain("before rebasing", ["ls", "-lR", this.unitdir.abspath])
-            this.explain("before rebasing", ["cat", this.unitdir.abspath + "/dist/hithere.js"])
+            // this.explain("before rebasing", ["cat", this.unitdir.abspath + "/dist/hithere.js"])
 
             // rebase the target branch onto the temporary one (this operation will fail if there are merge conflicts)
             this.info(3,`rebasing the new (${this.work_branch_name}) onto the temp one (${this.tmp_branch_name})`,"branch rebased")
             try {
                 this.gitLogic.rebase_branch_from_point_onto(this.work_branch_name, tag_after_old_version, this.tmp_branch_name)
                 this.explain("after rebasing", ["ls", "-lR", this.unitdir.abspath])
-                this.explain("after rebasing", ["cat", this.unitdir.abspath + "/dist/hithere.js"])
+                // this.explain("after rebasing", ["cat", this.unitdir.abspath + "/dist/hithere.js"])
             } catch ( e ) {
                 this.info(3,`checking why the operation failed`,"reason identified", "branch operation did not complete")
                 if ( this.gitLogic.state == GitState.OpInProgress) {

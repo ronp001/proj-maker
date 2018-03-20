@@ -41,6 +41,7 @@ export class GitLogic {
     }
 
     public runcmd = this._runcmd // allow mocking
+    private keep_color : boolean = false
 
     private _runcmd(gitcmd:string, args:string[]=[]) : Buffer | string | string[] {
         let old_dir : string | null = null
@@ -65,7 +66,12 @@ export class GitLogic {
             }
             console.log(dirinfo + chalk.blue("git " + [gitcmd].concat(args).join(" ")))
             let result = execFileSync('git',[gitcmd].concat(args))
-            console.log(chalk.cyan(result.toString()))
+            if ( this.keep_color ) {
+                console.log(result.toString())
+                this.keep_color = false
+            } else {
+                console.log(chalk.cyan(result.toString()))
+            }
             return result
         } catch ( e ) {
             console.error(chalk.cyan(`git command failed: ${e}`))
@@ -154,7 +160,8 @@ export class GitLogic {
     }
     
     public show_branching_graph() {
-        this.runcmd("log",["--graph", "--pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset%n'", "--abbrev-commit", "--date=relative", "--branches"])
+        this.keep_color = true
+        this.runcmd("-c", ["color.ui=always", "log","--graph",  "--format='%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset%n'", "--abbrev-commit", "--date=relative", "--branches"])
     }
 
     public create_branch(branch_name:string, branching_point:string)  {
@@ -230,6 +237,11 @@ export class GitLogic {
     public move_tag_to_head(tagname:string) {
         this.runcmd("tag", ["-d", tagname])
         this.runcmd("tag", [tagname])
+    }
+
+    public move_tag(tagname:string, ref:string) {
+        this.runcmd("tag", ["-d", tagname])
+        this.runcmd("tag", [tagname, ref])
     }
 
     public add(path:string|string[]) {

@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -e
+dir="/tmp/t1"
+unit="HiThere"
+
+rm -rf $dir
+mkdir $dir
+cd $dir
+git init
+
+proj-maker new greeter $unit
+
+echo "------"
+echo "running the node app"
+echo "------"
+node $unit/dist/hithere.js
+

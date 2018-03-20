@@ -22,6 +22,7 @@ export declare class GitLogic {
     private _path;
     project_dir: AbsPath;
     runcmd: (gitcmd: string, args?: string[]) => string | string[] | Buffer;
+    private keep_color;
     private _runcmd(gitcmd, args?);
     readonly state: GitState;
     readonly has_head: boolean;
@@ -50,6 +51,7 @@ export declare class GitLogic {
     get_files_in_commit(commit: string): string[];
     create_tag(tagname: string): void;
     move_tag_to_head(tagname: string): void;
+    move_tag(tagname: string, ref: string): void;
     add(path: string | string[]): void;
     commit(comment: string): void;
     commit_allowing_empty(comment: string): void;

@@ -78,8 +78,9 @@ export declare class ProjMaker {
     readonly tagname: string;
     get_tagname(unit_name?: string): string;
     cleanup_branches(switch_to: string, delete_branches: (string | null)[]): void;
-    continue_update(): void;
-    finalize_update(): void;
+    continue_update(): Promise<void>;
+    readonly generator_version_string: string;
+    finalize_update(): Promise<void>;
     private orig_branch_name;
     private tmp_branch_name;
     private work_branch_name;

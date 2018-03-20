@@ -1,0 +1,25 @@
+#!/bin/bash
+
+set -e
+dir="/tmp/t1"
+unit="HiThere"
+filename="hithere.js"
+file="${dir}/${unit}/dist/${filename}"
+
+cd $dir
+proj-maker update $unit -n 1
+
+cat >$file <<EOF
+// This is hithere.js
+console.log("Hithere!")
+
+console.log("this line was added manually during the rebase")
+EOF
+
+git add $file
+git rebase --continue
+proj-maker continue
+
+node $file
+
+proj-maker update $unit

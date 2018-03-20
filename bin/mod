@@ -1,0 +1,20 @@
+#!/bin/bash
+
+set -e
+dir="/tmp/t1"
+unit="HiThere"
+filename="hithere.js"
+file="${dir}/${unit}/dist/${filename}"
+
+cat >>$file <<EOF
+
+
+
+console.log("this line was added manually")
+EOF
+
+node $file
+
+cd $dir
+git add $file
+git commit -am "'mod' script updated file"
